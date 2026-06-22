@@ -1,0 +1,37 @@
+seed: 41
+
+data:
+  image_size: 96
+  font_size: 76
+
+guided_inference:
+  checkpoint: runs/smoke/diffusion_best.pt
+  output_dir: outputs/guided_cherokee
+  font: /usr/share/fonts/truetype/noto/NotoSansCherokee-Regular.ttf
+  preview_label_font: /usr/share/fonts/truetype/noto/NotoSansCherokee-Regular.ttf
+  chars: ᎠᎡᎢᎣᎤᎥᎦᎧᎨᎩᎪᎫᎬᎭᎮᎯᎰᎱᏂᏣ
+  ocr_lang: chr
+  ocr_psm: [8, 6]
+  device: auto
+  sample_steps: 48
+
+  style_reference_font: assets/ryman/Ryman Eco/Ryman Eco/RymanEco-Regular.otf
+  style_reference_text: RYMANECOBeautifulSustainablePrintTypography0123456789
+  use_vgg_style: true
+
+  target_saving: 0.42
+  min_ocr_confidence: 20
+  max_small_holes: 0
+  max_small_fragments: 2
+  oversave_margin: 0.04
+  diffusion_candidates: 2
+  save_top_candidates: 0
+
+  weights:
+    ocr: 3.0
+    ink: 1.6
+    style: 1.0
+    channel: 1.4
+    perforation: 8.0
+    fragmentation: 5.0
+    oversave: 8.0

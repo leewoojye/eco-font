@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hybrid-fontgen"
+version = "0.1.0"
+description = "Style-conditioned OCR-guided eco font generator"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fonttools>=4.50",
+  "numpy>=1.24",
+  "opencv-python>=4.8",
+  "Pillow>=9.0",
+  "torch>=2.0",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+hybrid-fontgen = "hybrid_fontgen.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

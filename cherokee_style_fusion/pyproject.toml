@@ -1,0 +1,11 @@
+[project]
+name = "cherokee-style-fusion"
+version = "0.1.0"
+description = "Cherokee eco-font style fusion and aesthetic-prior experiment"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

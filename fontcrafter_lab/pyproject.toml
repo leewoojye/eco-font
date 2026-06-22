@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fontcrafter-lab"
+version = "0.1.0"
+description = "FontCrafter reproduction scaffold and local proxy sampler"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "pillow",
+  "opencv-python",
+  "torch",
+]
+
+[project.optional-dependencies]
+flux = [
+  "diffusers>=0.34.0",
+  "transformers>=4.44.0",
+  "accelerate",
+  "sentencepiece",
+]
+
+[project.scripts]
+fontcrafter-lab = "fontcrafter_lab.cli:main"

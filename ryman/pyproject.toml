@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ryman-font"
+version = "0.1.0"
+description = "Ryman-Eco-inspired experimental eco font generator"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fonttools>=4.50",
+  "numpy>=1.24",
+  "opencv-python>=4.8",
+  "Pillow>=10.0",
+  "PyYAML>=6.0",
+  "torch>=2.0",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+ryman-font = "ryman_font.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

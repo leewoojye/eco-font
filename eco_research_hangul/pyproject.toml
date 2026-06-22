@@ -1,0 +1,27 @@
+[project]
+name = "eco-research-hangul"
+version = "0.1.0"
+description = "Hangul eco typeface generation with real eco-font targets and conditional diffusion."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fonttools>=4.50",
+  "numpy>=1.24",
+  "opencv-python-headless>=4.8",
+  "Pillow>=10.0",
+  "PyYAML>=6.0",
+  "scikit-image>=0.22",
+  "torch>=2.0",
+  "torchvision>=0.15",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+eco-research-hangul = "eco_research_hangul.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

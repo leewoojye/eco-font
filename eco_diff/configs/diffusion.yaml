@@ -1,0 +1,28 @@
+seed: 11
+
+data:
+  manifest: data/diffusion_smoke/manifest.jsonl
+  image_size: 64
+  val_ratio: 0.15
+  num_workers: 0
+
+model:
+  name: conditional_diffusion_unet
+  condition_channels: 6
+  base_channels: 16
+  depth: 3
+  dropout: 0.05
+
+diffusion:
+  timesteps: 48
+  beta_start: 0.0001
+  beta_end: 0.02
+
+training:
+  output_dir: runs/diffusion_smoke
+  epochs: 12
+  batch_size: 6
+  learning_rate: 0.0008
+  weight_decay: 0.00001
+  amp: false
+  device: auto

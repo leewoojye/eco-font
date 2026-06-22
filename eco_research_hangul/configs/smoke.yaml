@@ -1,0 +1,55 @@
+seed: 17
+
+data:
+  out_dir: data/smoke
+  manifest: data/smoke/manifest.jsonl
+  charset_file: charsets/hangul_smoke.txt
+  image_size: 96
+  font_size: 76
+  val_ratio: 0.15
+  num_workers: 0
+  font_pairs:
+    - name: gothic_regular
+      source: /usr/share/fonts/truetype/nanum/NanumGothic.ttf
+      target: /usr/share/fonts/truetype/nanum/NanumGothicEco.ttf
+    - name: gothic_bold
+      source: /usr/share/fonts/truetype/nanum/NanumGothicBold.ttf
+      target: /usr/share/fonts/truetype/nanum/NanumGothicEcoBold.ttf
+    - name: myeongjo_regular
+      source: /usr/share/fonts/truetype/nanum/NanumMyeongjo.ttf
+      target: /usr/share/fonts/truetype/nanum/NanumMyeongjoEco.ttf
+    - name: myeongjo_bold
+      source: /usr/share/fonts/truetype/nanum/NanumMyeongjoBold.ttf
+      target: /usr/share/fonts/truetype/nanum/NanumMyeongjoEcoBold.ttf
+
+model:
+  condition_channels: 4
+  base_channels: 24
+  depth: 3
+  dropout: 0.04
+
+diffusion:
+  timesteps: 48
+  beta_start: 0.0001
+  beta_end: 0.02
+  prediction_type: x0
+
+training:
+  output_dir: runs/smoke
+  epochs: 30
+  batch_size: 16
+  learning_rate: 0.0003
+  weight_decay: 0.00001
+  device: auto
+  amp: false
+
+inference:
+  checkpoint: runs/smoke/diffusion_best.pt
+  output_dir: outputs/smoke
+  font: /usr/share/fonts/truetype/nanum/NanumGothic.ttf
+  target_font: /usr/share/fonts/truetype/nanum/NanumGothicEco.ttf
+  target_saving: auto
+  sample_steps: 48
+  chars: 가나다라마바사아자차카타파하한글에코폰트
+  ocr_lang: kor
+  device: auto

@@ -1,0 +1,30 @@
+seed: 7
+
+data:
+  manifest: data/demo/manifest.jsonl
+  image_size: 96
+  val_ratio: 0.15
+  num_workers: 0
+
+model:
+  name: eco_unet
+  input_channels: 6
+  base_channels: 32
+  depth: 4
+  dropout: 0.05
+
+loss:
+  bce_weight: 1.0
+  dice_weight: 1.0
+  target_saving_weight: 0.35
+  edge_protection_weight: 0.2
+
+training:
+  output_dir: runs/demo
+  epochs: 20
+  batch_size: 16
+  learning_rate: 0.0003
+  weight_decay: 0.00001
+  amp: false
+  device: auto
+  log_every: 20

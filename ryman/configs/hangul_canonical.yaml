@@ -1,0 +1,29 @@
+seed: 41
+
+data:
+  manifest: data/hangul_canonical/manifest.jsonl
+  val_ratio: 0.12
+  num_workers: 0
+  target_style: canonical
+
+model:
+  input_channels: 7
+  base_channels: 16
+  depth: 3
+  dropout: 0.05
+
+loss:
+  bce_weight: 1.0
+  dice_weight: 0.85
+  ink_weight: 1.0
+  skeleton_weight: 0.0
+  smooth_weight: 0.025
+
+training:
+  output_dir: runs/hangul_canonical
+  epochs: 14
+  batch_size: 8
+  learning_rate: 0.0008
+  weight_decay: 0.00001
+  device: auto
+  amp: false

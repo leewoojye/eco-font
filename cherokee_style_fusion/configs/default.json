@@ -1,0 +1,32 @@
+{
+  "experiment_name": "demo",
+  "random_seed": 17,
+  "charset_file": "charsets/cherokee_demo.txt",
+  "font_dirs": [
+    "data/fonts"
+  ],
+  "base_font_preference": [
+    "NotoSansCherokee-wght.ttf",
+    "NotoSansCherokee-Regular.ttf"
+  ],
+  "style_font_limit": 12,
+  "image_size": 128,
+  "font_size": 104,
+  "target_ink_saving": 0.32,
+  "candidate_limit_per_char": 18,
+  "top_k_per_char": 8,
+  "weights": {
+    "ink": 1.15,
+    "readability": 1.45,
+    "aesthetic": 1.35,
+    "topology": 0.85,
+    "diversity": 0.35
+  },
+  "fusion_grid": {
+    "alpha": [0.35, 0.55, 0.72],
+    "weight_delta": [-1, 0, 1],
+    "width_scale": [0.92, 1.0, 1.08],
+    "slant": [-0.08, 0.0, 0.08],
+    "eco_modes": ["none", "inline", "stencil", "edge_relief"]
+  }
+}

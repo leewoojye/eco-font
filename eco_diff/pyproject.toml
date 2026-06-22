@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eco-diff"
+version = "0.1.0"
+description = "Ecofont-style glyph-to-eco-mask training and inference pipeline"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fonttools>=4.50",
+  "numpy>=1.24",
+  "opencv-python>=4.8",
+  "Pillow>=10.0",
+  "PyYAML>=6.0",
+  "scipy>=1.10",
+  "torch>=2.0",
+  "tqdm>=4.66",
+]
+
+[project.scripts]
+eco-diff = "eco_diff.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

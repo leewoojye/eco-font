@@ -1,0 +1,10 @@
+numpy
+pillow
+opencv-python
+torch
+
+# Needed only for the FLUX.1-Fill path.
+diffusers>=0.34.0
+transformers>=4.44.0
+accelerate
+sentencepiece
