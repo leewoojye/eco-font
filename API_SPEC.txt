@@ -1,0 +1,905 @@
+EcoFont Generation Backend API Specification
+============================================
+
+Base URL
+--------
+
+Verified access method for another developer:
+
+  1. Open an SSH tunnel from the developer's machine:
+
+       ssh -N -L 18000:127.0.0.1:8000 woojye2020@210.94.179.18 -p 8000
+
+  2. Use this URL from the developer's frontend:
+
+       const API_BASE = "http://127.0.0.1:18000";
+
+Local-only URL when the frontend runs on the same machine as the backend:
+
+  http://127.0.0.1:8000
+
+Interactive OpenAPI docs:
+
+  Developer machine after SSH tunnel:
+
+    http://127.0.0.1:18000/docs
+
+  Backend machine local-only:
+
+    http://127.0.0.1:8000/docs
+
+Current implementation entrypoint:
+
+  ecofont.api:app
+
+Run command:
+
+  cd /home/woojye2020/decs_jupyter_lab/eco-font
+  .venv/bin/python -m uvicorn ecofont.api:app --host 0.0.0.0 --port 8000
+
+Important:
+
+  Do not use http://210.94.179.18:8000 as the API URL. That public endpoint
+  currently responds as SSH, not HTTP API.
+
+  Do not use http://127.0.0.1:8000 from a different developer's machine.
+  127.0.0.1 always points to the caller's own computer, not this backend server.
+
+  After the SSH tunnel is open, http://127.0.0.1:18000 on the developer's
+  machine forwards to the backend's http://127.0.0.1:8000.
+
+
+Overview
+--------
+
+The API wraps the existing eco_research_hangul guided generation pipeline.
+
+Recommended frontend flow:
+
+  1. POST /v1/generate
+  2. Receive job_id
+  3. Poll GET /v1/jobs/{job_id}
+  4. When status is "completed", call GET /v1/jobs/{job_id}/result
+  5. Display returned image URLs from /v1/assets/{job_id}/...
+
+For quick local tests only, use:
+
+  POST /v1/generate-sync
+
+Uploaded TTF batch flow for complete Cherokee candidate fonts:
+
+  1. POST /v1/font-generation/jobs with multipart/form-data
+  2. Send font=<input.ttf> and spec=<JSON string>
+  3. Receive job_id
+  4. Poll GET /v1/font-generation/jobs/{job_id}
+  5. When status is "completed", call GET /v1/font-generation/jobs/{job_id}/result
+  6. Download outputs.zip_url or individual candidates[].ttf_url
+
+
+Supported Scripts
+-----------------
+
+  hangul
+  cherokee
+
+Mixed-script requests are rejected. For example, "가Ꭰ" is invalid.
+Send Hangul and Cherokee as separate API requests.
+
+
+Profiles
+--------
+
+GET /v1/profiles returns the available profiles.
+
+Current profiles:
+
+  hangul-jua
+    script: hangul
+    default: true
+    source config: eco_research_hangul/configs/guided_jua.yaml
+
+  hangul-gothic
+    script: hangul
+    source config: eco_research_hangul/configs/guided.yaml
+
+  hangul-myeongjo
+    script: hangul
+    source config: eco_research_hangul/configs/guided_myeongjo.yaml
+
+  hangul-barunpen
+    script: hangul
+    source config: eco_research_hangul/configs/guided_barunpen.yaml
+
+  cherokee-noto
+    script: cherokee
+    default: true
+    source config: eco_research_hangul/configs/guided_cherokee.yaml
+
+If profile is omitted, the backend selects the default profile for the script.
+
+
+Endpoint: GET /health
+---------------------
+
+Purpose:
+
+  Basic service health check.
+
+Response 200:
+
+  {
+    "status": "ok"
+  }
+
+
+Endpoint: GET /v1/health
+------------------------
+
+Purpose:
+
+  Versioned service health check.
+
+Response 200:
+
+  {
+    "status": "ok"
+  }
+
+
+Endpoint: GET /v1/profiles
+--------------------------
+
+Purpose:
+
+  List generation profiles available to clients.
+
+Response 200:
+
+  [
+    {
+      "name": "hangul-jua",
+      "script": "hangul",
+      "config": "configs/guided_jua.yaml",
+      "description": "Hangul guided generation using the Jua source font.",
+      "default": true
+    }
+  ]
+
+
+Endpoint: POST /v1/generate
+---------------------------
+
+Purpose:
+
+  Start an asynchronous generation job.
+
+Request content type:
+
+  application/json
+
+Request body:
+
+  {
+    "text": "가나다한글",
+    "script": "hangul",
+    "profile": "hangul-jua",
+    "target_saving": 0.42,
+    "diffusion_candidates": 2,
+    "sample_steps": 48,
+    "device": "auto",
+    "seed": null,
+    "image_size": null,
+    "font_size": null,
+    "use_vgg_style": true,
+    "include_candidate_preview": false,
+    "save_candidates_limit": 999,
+    "max_chars": null,
+    "font_path": null
+  }
+
+Request fields:
+
+  text
+    Type: string
+    Required: yes
+    Min length: 1
+    Max length: 128
+    Description: Characters to generate. Whitespace is ignored. Duplicate
+    characters are removed internally.
+
+  script
+    Type: string
+    Required: no
+    Allowed: "hangul", "cherokee"
+    Description: If omitted, the backend tries to infer the script from text.
+
+  profile
+    Type: string
+    Required: no
+    Allowed:
+      "hangul-jua"
+      "hangul-gothic"
+      "hangul-myeongjo"
+      "hangul-barunpen"
+      "cherokee-noto"
+    Description: Generation profile. Must match the selected script.
+
+  target_saving
+    Type: number
+    Required: no
+    Default: 0.42
+    Range: 0.0 to 0.8
+    Description: Target ink-saving ratio.
+
+  diffusion_candidates
+    Type: integer
+    Required: no
+    Default: 2
+    Range: 0 to 8
+    Description: Number of diffusion candidates sampled per glyph.
+
+  sample_steps
+    Type: integer or null
+    Required: no
+    Default: 48
+    Range: 1 to 250
+    Description: Diffusion sampling steps. Set low for smoke tests.
+
+  device
+    Type: string
+    Required: no
+    Default: "auto"
+    Allowed: "auto", "cpu", "cuda"
+    Description: Inference device hint.
+
+  seed
+    Type: integer or null
+    Required: no
+    Description: Optional random seed for reproducibility.
+
+  image_size
+    Type: integer or null
+    Required: no
+    Range: 32 to 512
+    Description: Optional glyph canvas size override.
+
+  font_size
+    Type: integer or null
+    Required: no
+    Range: 16 to 512
+    Description: Optional glyph rendering font size override.
+
+  use_vgg_style
+    Type: boolean
+    Required: no
+    Default: true
+    Description: Enables VGG Gram-style scoring. Disable for faster smoke tests.
+
+  include_candidate_preview
+    Type: boolean
+    Required: no
+    Default: false
+    Description: Also creates candidate-preview contact sheets. This is slower.
+
+  save_candidates_limit
+    Type: integer
+    Required: no
+    Default: 999
+    Range: 0 to 5000
+    Description: Number of candidate PNGs to save per request. Set 0 to return
+    candidate scores without candidate image assets.
+
+  max_chars
+    Type: integer or null
+    Required: no
+    Range: 1 to 128
+    Description: Optional cap after whitespace removal and de-duplication.
+
+  font_path
+    Type: string or null
+    Required: no
+    Description: Optional server-local TTF/OTF path override. This must be a
+    path visible to the backend server.
+
+Response 202:
+
+  {
+    "job_id": "e1e902f27c1142a793a5505d5afcca37",
+    "status": "queued",
+    "status_url": "/v1/jobs/e1e902f27c1142a793a5505d5afcca37",
+    "result_url": "/v1/jobs/e1e902f27c1142a793a5505d5afcca37/result"
+  }
+
+Possible errors:
+
+  422
+    Invalid request body, invalid script, mixed script text, or profile/script
+    mismatch.
+
+
+Endpoint: POST /v1/generate-sync
+--------------------------------
+
+Purpose:
+
+  Run generation synchronously and return the final result directly.
+
+Use this only for short local development tests. For real UI usage, prefer
+POST /v1/generate because generation may take a long time.
+
+Request body:
+
+  Same as POST /v1/generate.
+
+Response 200:
+
+  Same shape as GET /v1/jobs/{job_id}/result.
+
+Possible errors:
+
+  422
+    Invalid request.
+
+  500
+    Generation failed.
+
+
+Endpoint: GET /v1/jobs/{job_id}
+-------------------------------
+
+Purpose:
+
+  Poll job status.
+
+Path params:
+
+  job_id
+    Type: string
+    Required: yes
+
+Response 200:
+
+  {
+    "job_id": "e1e902f27c1142a793a5505d5afcca37",
+    "status": "completed",
+    "created_at": "2026-06-22T00:00:00.000000+00:00",
+    "started_at": "2026-06-22T00:00:01.000000+00:00",
+    "completed_at": "2026-06-22T00:00:05.000000+00:00",
+    "error": null,
+    "request": {
+      "text": "가",
+      "script": "hangul",
+      "profile": "hangul-jua"
+    },
+    "result_url": "/v1/jobs/e1e902f27c1142a793a5505d5afcca37/result"
+  }
+
+Status values:
+
+  queued
+  running
+  completed
+  failed
+
+Response 404:
+
+  {
+    "detail": "unknown job_id: ..."
+  }
+
+
+Endpoint: GET /v1/jobs/{job_id}/result
+--------------------------------------
+
+Purpose:
+
+  Fetch completed generation result.
+
+Response 200:
+
+  {
+    "job_id": "e1e902f27c1142a793a5505d5afcca37",
+    "status": "completed",
+    "script": "hangul",
+    "profile": "hangul-jua",
+    "text": "가",
+    "output_root": "/home/.../eco_research_hangul/outputs/api_jobs/e1e902... ",
+    "summary": {
+      "n": 1,
+      "mean_ink_saving": 0.3155935402151975,
+      "tesseract_match_accuracy": 1.0,
+      "tesseract_exact_accuracy": 1.0,
+      "mean_tesseract_confidence": 96.0,
+      "passes_ocr_gate_rate": 1.0,
+      "passes_design_gate_rate": 1.0
+    },
+    "contact_sheet": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/contact_sheet.png",
+    "manifests": {
+      "inference": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/inference_manifest.jsonl",
+      "candidates": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/candidate_manifest.jsonl",
+      "metrics_summary": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/metrics_summary.json"
+    },
+    "characters": [
+      {
+        "char": "가",
+        "char_id": "uac00",
+        "source": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/source/uac00.png",
+        "generated": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/generated/uac00.png",
+        "metrics": {
+          "ink_saving": 0.3155935402151975,
+          "tesseract_available": true,
+          "tesseract_text": "가",
+          "tesseract_confidence": 96.0,
+          "tesseract_match": true,
+          "tesseract_exact_match": true,
+          "objective": {
+            "score": 5.922261105581704,
+            "candidate": "source_erode2",
+            "ocr_score": 1.24,
+            "ink_score": 0.7514131909885654,
+            "style_score": 1.0,
+            "passes_ocr_gate": true,
+            "passes_design_gate": true
+          }
+        },
+        "candidates": [
+          {
+            "name": "source_erode2",
+            "metrics": {
+              "ink_saving": 0.3155935402151975,
+              "tesseract_exact_match": true,
+              "objective": {
+                "score": 5.922261105581704
+              }
+            },
+            "image": "/v1/assets/e1e902f27c1142a793a5505d5afcca37/guided/candidates/uac00_02_source_erode2.png"
+          }
+        ]
+      }
+    ]
+  }
+
+If include_candidate_preview was true, the result also contains:
+
+  {
+    "candidate_preview": {
+      "manifest": "/v1/assets/{job_id}/candidate_preview/candidate_preview_manifest.jsonl",
+      "contact_sheet": "/v1/assets/{job_id}/candidate_preview/contact_sheet.png"
+    }
+  }
+
+Response 404:
+
+  Unknown job id.
+
+Response 409:
+
+  Job is not completed yet or failed.
+
+
+Endpoint: GET /v1/assets/{job_id}/{asset_path}
+----------------------------------------------
+
+Purpose:
+
+  Download or display generated artifacts.
+
+Common asset URLs:
+
+  /v1/assets/{job_id}/guided/contact_sheet.png
+  /v1/assets/{job_id}/guided/source/{char_id}.png
+  /v1/assets/{job_id}/guided/generated/{char_id}.png
+  /v1/assets/{job_id}/guided/candidates/{candidate_file}.png
+  /v1/assets/{job_id}/guided/inference_manifest.jsonl
+  /v1/assets/{job_id}/guided/candidate_manifest.jsonl
+  /v1/assets/{job_id}/guided/metrics_summary.json
+  /v1/assets/{job_id}/candidate_preview/contact_sheet.png
+  /v1/assets/{job_id}/font_generation/cherokee_candidates.zip
+  /v1/assets/{job_id}/font_generation/manifest.json
+  /v1/assets/{job_id}/font_generation/candidates/{candidate_file}.ttf
+  /v1/assets/{job_id}/font_generation/previews/{candidate_file}.png
+
+Frontend usage:
+
+  The API returns relative URLs. Prefix them with the API base URL.
+
+  const fullUrl = API_BASE + result.contact_sheet;
+
+Response:
+
+  FileResponse with content type inferred from file extension.
+
+Possible errors:
+
+  400
+    Asset path escapes the job output directory.
+
+  404
+    Asset file does not exist.
+
+
+Frontend Example: Async Job Flow
+--------------------------------
+
+const API_BASE = "http://127.0.0.1:18000";
+
+async function createJob() {
+  const res = await fetch(`${API_BASE}/v1/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: "가나다한글",
+      script: "hangul",
+      profile: "hangul-jua",
+      target_saving: 0.42,
+      diffusion_candidates: 2,
+      sample_steps: 48,
+      include_candidate_preview: true
+    })
+  });
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+
+  return await res.json();
+}
+
+async function waitForResult(jobId) {
+  while (true) {
+    const res = await fetch(`${API_BASE}/v1/jobs/${jobId}`);
+    const status = await res.json();
+
+    if (status.status === "completed") {
+      const resultRes = await fetch(`${API_BASE}/v1/jobs/${jobId}/result`);
+      return await resultRes.json();
+    }
+
+    if (status.status === "failed") {
+      throw new Error(status.error || "generation failed");
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+
+async function run() {
+  const job = await createJob();
+  const result = await waitForResult(job.job_id);
+
+  document.querySelector("#contact-sheet").src = API_BASE + result.contact_sheet;
+
+  for (const item of result.characters) {
+    console.log(item.char, API_BASE + item.generated, item.candidates);
+  }
+}
+
+
+Frontend Example: Cherokee Request
+----------------------------------
+
+fetch("http://127.0.0.1:18000/v1/generate", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    text: "ᎠᎡᎢᎣᎤ",
+    script: "cherokee",
+    profile: "cherokee-noto",
+    target_saving: 0.42,
+    diffusion_candidates: 2
+  })
+});
+
+
+Frontend Example: Fast Smoke Test
+---------------------------------
+
+This is useful for local UI wiring without waiting for full diffusion sampling.
+
+fetch("http://127.0.0.1:18000/v1/generate-sync", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    text: "가",
+    script: "hangul",
+    profile: "hangul-jua",
+    diffusion_candidates: 0,
+    sample_steps: 1,
+    use_vgg_style: false,
+    save_candidates_limit: 50
+  })
+});
+
+
+Endpoint: GET /v1/font-generation/methods
+-----------------------------------------
+
+Purpose:
+
+  List uploaded-font batch generation methods supported by the backend.
+
+Response 200:
+
+  [
+    {
+      "name": "eco_research_guided",
+      "supported_scripts": ["cherokee"],
+      "supported_codepoint_sets": ["cherokee_full", "uploaded_cherokee"],
+      "max_candidate_count": 20,
+      "output_formats": ["zip"],
+      "description": "Uploaded TTF to candidate complete Cherokee TTFs using eco_research_hangul-style ink-saving recipes."
+    }
+  ]
+
+
+Endpoint: POST /v1/font-generation/jobs
+---------------------------------------
+
+Purpose:
+
+  Start an asynchronous uploaded-font batch generation job.
+
+Request content type:
+
+  multipart/form-data
+
+Form fields:
+
+  font
+    Type: file
+    Required: yes
+    Description: Uploaded .ttf or glyf-based .otf file. CFF/OTF outlines are
+    rejected in the current implementation.
+
+  spec
+    Type: string
+    Required: yes
+    Description: JSON string with generation settings.
+
+Spec JSON:
+
+  {
+    "script": "cherokee",
+    "method": "eco_research_guided",
+    "candidate_count": 20,
+    "codepoint_set": "cherokee_full",
+    "return_format": "zip",
+    "target_saving": 0.42,
+    "image_size": 96,
+    "font_size": 76,
+    "preview_text": null,
+    "use_diffusion": false,
+    "evaluation": {
+      "ocr": true,
+      "ink": true,
+      "style": false,
+      "ocr_eval_mode": "sample",
+      "eval_sample_size": 32,
+      "ocr_lang": "chr",
+      "ocr_psm": [8, 6, 10]
+    }
+  }
+
+Supported values:
+
+  script
+    Current uploaded-font batch support: "cherokee"
+
+  method
+    Current uploaded-font batch support: "eco_research_guided"
+
+  candidate_count
+    Range: 1 to 20
+    Description: Number of complete candidate TTFs to generate.
+
+  codepoint_set
+    Allowed: "cherokee_full", "uploaded_cherokee"
+    Description:
+      "cherokee_full" requests all 172 assigned Cherokee codepoints.
+      "uploaded_cherokee" requests only Cherokee codepoints present in the font.
+
+  use_diffusion
+    Current support: false only
+    Description: Full-font diffusion over every glyph is not implemented in this
+    batch endpoint yet.
+
+  evaluation.ocr_eval_mode
+    Allowed: "none", "sample", "full"
+    Description: "full" runs OCR on every covered glyph for every candidate and
+    can be slow. Prefer "sample" for UI requests.
+
+Response 202:
+
+  {
+    "job_id": "fc65724ed61d4d09a08331819ddb6fcc",
+    "status": "queued",
+    "status_url": "/v1/font-generation/jobs/fc65724ed61d4d09a08331819ddb6fcc",
+    "result_url": "/v1/font-generation/jobs/fc65724ed61d4d09a08331819ddb6fcc/result"
+  }
+
+
+Endpoint: GET /v1/font-generation/jobs/{job_id}
+-----------------------------------------------
+
+Purpose:
+
+  Poll uploaded-font batch job status.
+
+Response 200:
+
+  {
+    "job_id": "fc65724ed61d4d09a08331819ddb6fcc",
+    "status": "completed",
+    "created_at": "2026-06-22T00:00:00.000000+00:00",
+    "started_at": "2026-06-22T00:00:01.000000+00:00",
+    "completed_at": "2026-06-22T00:00:05.000000+00:00",
+    "error": null,
+    "request": {
+      "spec": {
+        "script": "cherokee",
+        "method": "eco_research_guided",
+        "candidate_count": 20
+      },
+      "input_filename": "input.ttf"
+    },
+    "result_url": "/v1/font-generation/jobs/fc65724ed61d4d09a08331819ddb6fcc/result"
+  }
+
+
+Endpoint: GET /v1/font-generation/jobs/{job_id}/result
+------------------------------------------------------
+
+Purpose:
+
+  Fetch completed uploaded-font batch result.
+
+Response 200:
+
+  {
+    "job_id": "fc65724ed61d4d09a08331819ddb6fcc",
+    "status": "completed",
+    "script": "cherokee",
+    "method": "eco_research_guided",
+    "generation_mode": "uploaded_ttf_style_recipe_batch",
+    "diffusion_used": false,
+    "input_filename": "NotoSansCherokee-Regular.ttf",
+    "codepoint_set": "cherokee_full",
+    "coverage": {
+      "requested_glyphs": 172,
+      "covered_glyphs": 172,
+      "visible_source_glyphs": 172,
+      "missing_glyphs": 0,
+      "missing_codepoints": []
+    },
+    "outputs": {
+      "zip_url": "/v1/assets/{job_id}/font_generation/cherokee_candidates.zip",
+      "manifest_url": "/v1/assets/{job_id}/font_generation/manifest.json"
+    },
+    "candidates": [
+      {
+        "candidate_id": "candidate_01",
+        "style_id": "source_erode1",
+        "ttf_url": "/v1/assets/{job_id}/font_generation/candidates/candidate_01_source_erode1.ttf",
+        "preview_url": "/v1/assets/{job_id}/font_generation/previews/candidate_01_source_erode1.png",
+        "coverage": {
+          "requested_glyphs": 172,
+          "visible_source_glyphs": 172,
+          "replaced_glyphs": 172,
+          "skipped_glyphs": 0
+        },
+        "metrics": {
+          "eval_glyphs": 32,
+          "mean_ink_saving": 0.20,
+          "mean_ocr_score": 0.91,
+          "mean_ocr_confidence": 82.4,
+          "ocr_available": true,
+          "ocr_lang": "chr",
+          "style_score": null
+        }
+      }
+    ]
+  }
+
+
+Frontend Example: Uploaded Cherokee TTF Batch
+---------------------------------------------
+
+const API_BASE = "http://127.0.0.1:18000";
+
+async function createCherokeeTtfBatch(file) {
+  const spec = {
+    script: "cherokee",
+    method: "eco_research_guided",
+    candidate_count: 20,
+    codepoint_set: "cherokee_full",
+    return_format: "zip",
+    evaluation: {
+      ocr: true,
+      ink: true,
+      style: false,
+      ocr_eval_mode: "sample",
+      eval_sample_size: 32,
+      ocr_lang: "chr",
+      ocr_psm: [8, 6, 10]
+    }
+  };
+
+  const form = new FormData();
+  form.append("font", file);
+  form.append("spec", JSON.stringify(spec));
+
+  const res = await fetch(`${API_BASE}/v1/font-generation/jobs`, {
+    method: "POST",
+    body: form
+  });
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
+  return await res.json();
+}
+
+async function waitForCherokeeTtfBatch(jobId) {
+  while (true) {
+    const res = await fetch(`${API_BASE}/v1/font-generation/jobs/${jobId}`);
+    const status = await res.json();
+
+    if (status.status === "completed") {
+      const resultRes = await fetch(`${API_BASE}/v1/font-generation/jobs/${jobId}/result`);
+      return await resultRes.json();
+    }
+
+    if (status.status === "failed") {
+      throw new Error(status.error || "font generation failed");
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+}
+
+async function downloadZip(result) {
+  window.location.href = API_BASE + result.outputs.zip_url;
+}
+
+
+CORS
+----
+
+The backend reads this environment variable:
+
+  ECOFONT_API_CORS_ORIGINS
+
+Default:
+
+  *
+
+Example:
+
+  ECOFONT_API_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:5173
+
+
+Runtime Artifacts
+-----------------
+
+Runtime files are generated under:
+
+  eco_research_hangul/configs/api_job_*.yaml
+  eco_research_hangul/outputs/api_jobs/{job_id}/
+
+These files are intentionally ignored by git.
+
+
+Current Limitations
+-------------------
+
+  - Job state is stored in server memory.
+  - Restarting the server loses job status, although output files remain on disk.
+  - Default worker count is 1.
+  - Authentication is not implemented.
+  - Rate limiting is not implemented.
+  - Mixed-script requests are rejected.
+  - font_path is server-local, not a browser file upload field.
+  - Uploaded TTF batch generation currently supports Cherokee only.
+  - Uploaded TTF batch generation requires TrueType glyf outlines.
+  - Uploaded TTF batch generation uses fast eco style recipes; full diffusion
+    over every glyph is not enabled in this endpoint yet.

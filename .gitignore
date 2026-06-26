@@ -11,3 +11,4 @@ data/
 runs/
 outputs/
 uploads/
+eco_research_hangul/configs/api_job_*.yaml

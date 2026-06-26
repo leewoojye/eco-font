@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EcoFont Client API Spec</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #181818;
+      --panel: #252525;
+      --text: #f4f4f4;
+      --muted: #bdbdbd;
+      --line: #3a3a3a;
+      --key: #f0a8c0;
+      --value: #cce96a;
+      --number: #81c7f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+    main {
+      width: min(1040px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 36px 0 64px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 42px;
+      letter-spacing: 0;
+    }
+    h2 {
+      margin: 38px 0 14px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+    p {
+      margin: 0 0 12px;
+      color: var(--muted);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid #303030;
+      border-radius: 8px;
+      padding: 18px;
+      margin: 12px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 10px 12px;
+      vertical-align: top;
+      text-align: left;
+    }
+    tr:last-child th, tr:last-child td { border-bottom: 0; }
+    th {
+      width: 210px;
+      color: var(--text);
+      font-weight: 700;
+    }
+    td { color: var(--muted); }
+    code, pre {
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      letter-spacing: 0;
+    }
+    code {
+      color: var(--value);
+      background: #202020;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+    pre {
+      margin: 12px 0;
+      padding: 20px;
+      overflow-x: auto;
+      background: var(--panel);
+      border: 1px solid #303030;
+      border-radius: 8px;
+      color: #e8e8e8;
+      font-size: 14px;
+      tab-size: 2;
+    }
+    .k { color: var(--key); }
+    .s { color: var(--value); }
+    .n { color: var(--number); }
+    .note {
+      color: var(--muted);
+      border-left: 4px solid var(--value);
+      padding: 10px 12px;
+      background: #20221a;
+      border-radius: 0 8px 8px 0;
+      margin-top: 12px;
+    }
+    @media (max-width: 720px) {
+      main { width: min(100vw - 24px, 1040px); }
+      h1 { font-size: 32px; }
+      th { width: 135px; }
+      pre { font-size: 12px; padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>EcoFont Client API Spec</h1>
+    <p>프론트엔드는 TTF 파일 하나만 보낸다. 서버는 TTF의 <code>cmap</code> Unicode coverage를 읽어 Cherokee 여부를 자동 판정하고, Cherokee면 eco 후보 TTF 20개와 평균 OCR 점수를 반환한다.</p>
+
+    <h2>Header</h2>
+    <div class="panel">
+      <table>
+        <tr>
+          <th>Endpoint</th>
+          <td><code>POST /v1/font-generation/ttf</code></td>
+        </tr>
+        <tr>
+          <th>Content-Type</th>
+          <td><code>multipart/form-data</code></td>
+        </tr>
+        <tr>
+          <th>Authorization</th>
+          <td>없음</td>
+        </tr>
+      </table>
+      <div class="note">브라우저 <code>FormData</code> 사용 시 <code>Content-Type</code>을 직접 지정하지 않는다.</div>
+    </div>
+
+    <h2>Request</h2>
+    <pre>{
+  <span class="k">"font"</span>: <span class="s">File(.ttf 또는 TrueType glyf 기반 .otf)</span>
+}</pre>
+    <div class="panel">
+      <table>
+        <tr>
+          <th>font</th>
+          <td>필수. 사용자가 업로드한 원본 폰트 파일.</td>
+        </tr>
+        <tr>
+          <th>보내지 않는 값</th>
+          <td><code>script</code>, <code>method</code>, <code>candidate_count</code>, <code>spec</code> JSON은 보내지 않는다.</td>
+        </tr>
+        <tr>
+          <th>서버 고정값</th>
+          <td><code>method=eco_research_guided</code>, <code>candidate_count=20</code>, <code>codepoint_set=cherokee_full</code>, <code>ocr_lang=chr</code></td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>Response</h2>
+    <p>성공 시 HTTP 200. 실제 TTF 파일은 JSON 안의 URL로 내려준다.</p>
+    <pre>{
+  <span class="k">"job_id"</span>: <span class="s">"a88376b8000242eda3692c1c67944c63"</span>,
+  <span class="k">"status"</span>: <span class="s">"completed"</span>,
+  <span class="k">"script"</span>: <span class="s">"cherokee"</span>,
+  <span class="k">"method"</span>: <span class="s">"eco_research_guided"</span>,
+  <span class="k">"generation_mode"</span>: <span class="s">"uploaded_ttf_style_recipe_batch"</span>,
+  <span class="k">"input_filename"</span>: <span class="s">"input.ttf"</span>,
+  <span class="k">"codepoint_set"</span>: <span class="s">"cherokee_full"</span>,
+  <span class="k">"coverage"</span>: {
+    <span class="k">"requested_glyphs"</span>: <span class="n">172</span>,
+    <span class="k">"covered_glyphs"</span>: <span class="n">172</span>,
+    <span class="k">"visible_source_glyphs"</span>: <span class="n">172</span>,
+    <span class="k">"missing_glyphs"</span>: <span class="n">0</span>,
+    <span class="k">"missing_codepoints"</span>: []
+  },
+  <span class="k">"outputs"</span>: {
+    <span class="k">"zip_url"</span>: <span class="s">"/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/cherokee_candidates.zip"</span>,
+    <span class="k">"manifest_url"</span>: <span class="s">"/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/manifest.json"</span>
+  },
+  <span class="k">"candidates"</span>: [
+    {
+      <span class="k">"candidate_id"</span>: <span class="s">"candidate_00"</span>,
+      <span class="k">"style_id"</span>: <span class="s">"source_original"</span>,
+      <span class="k">"ttf_url"</span>: <span class="s">"/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/candidates/candidate_00_source_original.ttf"</span>,
+      <span class="k">"preview_url"</span>: <span class="s">"/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/previews/candidate_00_source_original.png"</span>,
+      <span class="k">"file_size_bytes"</span>: <span class="n">123456</span>,
+      <span class="k">"metrics"</span>: {
+        <span class="k">"eval_glyphs"</span>: <span class="n">32</span>,
+        <span class="k">"mean_ocr_score"</span>: <span class="n">0.91</span>,
+        <span class="k">"mean_ink_saving"</span>: <span class="n">0.24</span>,
+        <span class="k">"mean_ocr_confidence"</span>: <span class="n">78.5</span>,
+        <span class="k">"ocr_available"</span>: <span class="n">true</span>,
+        <span class="k">"ocr_lang"</span>: <span class="s">"chr"</span>
+      }
+    }
+  ]
+}</pre>
+
+    <h2>Download</h2>
+    <div class="panel">
+      <table>
+        <tr>
+          <th>전체 zip</th>
+          <td><code>GET {API_BASE}{outputs.zip_url}</code></td>
+        </tr>
+        <tr>
+          <th>개별 TTF</th>
+          <td><code>GET {API_BASE}{candidates[0].ttf_url}</code></td>
+        </tr>
+        <tr>
+          <th>Preview PNG</th>
+          <td><code>GET {API_BASE}{candidates[0].preview_url}</code></td>
+        </tr>
+      </table>
+      <div class="note">응답의 <code>*_url</code>은 상대 경로다. 다운로드할 때 프론트에서 <code>API_BASE</code>를 앞에 붙인다.</div>
+    </div>
+
+    <h2>Error</h2>
+    <pre>{
+  <span class="k">"detail"</span>: <span class="s">"error message"</span>
+}</pre>
+    <p>지원하지 않는 언어 폰트이면 <code>detail</code>이 객체로 내려올 수 있다.</p>
+    <pre>{
+  <span class="k">"detail"</span>: {
+    <span class="k">"message"</span>: <span class="s">"uploaded font is not a supported Cherokee font"</span>,
+    <span class="k">"detected_script"</span>: <span class="n">null</span>,
+    <span class="k">"script_counts"</span>: {
+      <span class="k">"cherokee"</span>: <span class="n">0</span>,
+      <span class="k">"hangul"</span>: <span class="n">0</span>
+    },
+    <span class="k">"supported_scripts"</span>: [<span class="s">"cherokee"</span>]
+  }
+}</pre>
+    <div class="panel">
+      <table>
+        <tr><th>413</th><td>업로드 파일이 50 MB를 초과함.</td></tr>
+        <tr><th>422</th><td>빈 파일, 잘못된 폰트 형식, glyf 미지원, Cherokee 글자 없음.</td></tr>
+        <tr><th>500</th><td>생성 중 서버 오류.</td></tr>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

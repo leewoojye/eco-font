@@ -1,0 +1,182 @@
+EcoFont Client API Spec
+=======================
+
+프론트엔드는 TTF 파일 하나만 보낸다.
+서버는 TTF의 cmap Unicode coverage를 읽어 언어를 자동 판정한다.
+현재 자동 생성은 Cherokee 폰트만 지원한다.
+
+
+Endpoint
+--------
+
+POST /v1/font-generation/ttf
+
+
+Header
+------
+
+별도 인증 헤더 없음.
+
+Content-Type:
+
+  multipart/form-data
+
+브라우저 FormData 사용 시 Content-Type을 직접 지정하지 않는다.
+
+
+Request
+-------
+
+Form Data:
+
+  font
+    Type: File
+    Required: true
+    Allowed: .ttf, TrueType glyf 기반 .otf
+    Meaning: 사용자가 업로드한 원본 폰트 파일
+
+요청에 script, method, candidate_count, spec JSON은 보내지 않는다.
+서버 고정 설정:
+
+  script: TTF cmap에서 자동 감지
+  supported script: cherokee
+  method: eco_research_guided
+  candidate_count: 20
+  codepoint_set: cherokee_full
+  output: zip + 개별 TTF URL
+  evaluation: OCR 평균 점수 + ink saving 평균값
+
+
+Response
+--------
+
+성공 시 HTTP 200.
+응답은 JSON이며, 실제 TTF 파일은 URL로 내려준다.
+
+  {
+    "job_id": "a88376b8000242eda3692c1c67944c63",
+    "status": "completed",
+    "script": "cherokee",
+    "method": "eco_research_guided",
+    "generation_mode": "uploaded_ttf_style_recipe_batch",
+    "diffusion_used": false,
+    "input_filename": "input.ttf",
+    "codepoint_set": "cherokee_full",
+    "coverage": {
+      "requested_glyphs": 172,
+      "covered_glyphs": 172,
+      "visible_source_glyphs": 172,
+      "missing_glyphs": 0,
+      "missing_codepoints": []
+    },
+    "evaluation": {
+      "ocr": true,
+      "ink": true,
+      "style": false,
+      "ocr_eval_mode": "sample",
+      "eval_sample_size": 32,
+      "ocr_lang": "chr",
+      "ocr_psm": [8, 6, 10]
+    },
+    "outputs": {
+      "zip_url": "/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/cherokee_candidates.zip",
+      "manifest_url": "/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/manifest.json"
+    },
+    "candidates": [
+      {
+        "candidate_id": "candidate_00",
+        "style_id": "source_original",
+        "description": "Original source glyph baseline.",
+        "ttf_url": "/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/candidates/candidate_00_source_original.ttf",
+        "preview_url": "/v1/assets/a88376b8000242eda3692c1c67944c63/font_generation/previews/candidate_00_source_original.png",
+        "file_size_bytes": 123456,
+        "coverage": {
+          "requested_glyphs": 172,
+          "visible_source_glyphs": 172,
+          "replaced_glyphs": 172,
+          "skipped_glyphs": 0,
+          "skipped_chars": []
+        },
+        "metrics": {
+          "eval_glyphs": 32,
+          "mean_ink_saving": 0.24,
+          "mean_ocr_score": 0.91,
+          "mean_ocr_exact_match": 0.88,
+          "mean_ocr_match": 0.94,
+          "mean_ocr_confidence": 78.5,
+          "ocr_available": true,
+          "ocr_lang": "chr",
+          "style_score": null
+        }
+      }
+    ]
+  }
+
+
+Response Fields
+---------------
+
+outputs.zip_url
+  후보 TTF 20개, preview PNG, manifest.json이 들어있는 zip 경로.
+
+candidates
+  길이 20의 후보 목록.
+
+candidates[].ttf_url
+  후보 TTF 파일 다운로드 경로.
+
+candidates[].preview_url
+  후보 preview PNG 다운로드 경로.
+
+candidates[].metrics.mean_ocr_score
+  해당 후보 TTF의 평균 OCR 점수.
+
+candidates[].metrics.mean_ink_saving
+  해당 후보 TTF의 평균 잉크 절감률.
+
+
+Download URL
+------------
+
+응답의 *_url은 상대 경로다.
+프론트는 API_BASE를 앞에 붙여 다운로드한다.
+
+  GET {API_BASE}{outputs.zip_url}
+  GET {API_BASE}{candidates[0].ttf_url}
+  GET {API_BASE}{candidates[0].preview_url}
+
+
+Error Response
+--------------
+
+  {
+    "detail": "error message"
+  }
+
+지원하지 않는 언어 폰트이면 detail이 객체로 내려올 수 있다.
+
+  {
+    "detail": {
+      "message": "uploaded font is not a supported Cherokee font",
+      "detected_script": null,
+      "script_counts": {
+        "cherokee": 0,
+        "hangul": 0
+      },
+      "supported_scripts": ["cherokee"]
+    }
+  }
+
+대표 오류:
+
+  413
+    업로드 파일이 50 MB를 초과함.
+
+  422
+    파일이 비어있음.
+    .ttf/.otf가 아님.
+    TrueType glyf 기반 폰트가 아님.
+    TTF cmap 기준 Cherokee 글자가 없음.
+
+  500
+    생성 중 서버 오류.

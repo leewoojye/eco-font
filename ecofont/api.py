@@ -4,18 +4,37 @@ from __future__ import annotations
 
 import shutil
 import uuid
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .infer import infer_font
+from .server.api import router as generation_router
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = APP_ROOT / "uploads"
 OUTPUT_DIR = APP_ROOT / "outputs" / "api"
 
 app = FastAPI(title="EcoFont AI Lab", version="0.1.0")
+
+
+def _cors_origins() -> list[str]:
+    raw = os.environ.get("ECOFONT_API_CORS_ORIGINS", "*")
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+_origins = _cors_origins()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=_origins != ["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(generation_router)
 
 
 @app.get("/health")

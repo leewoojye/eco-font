@@ -330,6 +330,9 @@ def run_guided_inference_from_config(config_path: str | Path) -> Path:
     cfg = load_yaml(config_path)
     data_cfg = cfg["data"]
     inf_cfg = cfg["guided_inference"]
+    seed = int(cfg.get("seed", 0))
+    torch.manual_seed(seed)
+    np.random.seed(seed)
     out_dir = ensure_dir(base / inf_cfg["output_dir"])
     source_dir = ensure_dir(out_dir / "source")
     generated_dir = ensure_dir(out_dir / "generated")

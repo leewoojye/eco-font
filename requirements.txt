@@ -7,3 +7,4 @@ tqdm>=4.60
 fastapi>=0.100
 uvicorn>=0.20
 python-multipart>=0.0.9
+PyYAML>=6.0
